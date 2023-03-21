@@ -795,45 +795,58 @@ var ModerationCommands = []*commands.YAGCommand{
 		},
 	},
 	{
-		CustomEnabled: true,
-		CmdCategory:   commands.CategoryModeration,
-		Name:          "Warn",
-		Description:   "Warns a user, warnings are saved using the bot. Use -warnings to view them.",
-		RequiredArgs:  2,
-		Arguments: []*dcmd.ArgDef{
-			{Name: "User", Type: dcmd.UserID},
-			{Name: "Reason", Type: dcmd.String},
-		},
-		RequiredDiscordPermsHelp: "ManageMessages or ManageServer",
-		SlashCommandEnabled:      true,
-		DefaultEnabled:           false,
-		IsResponseEphemeral:      true,
-		RunFunc: func(parsed *dcmd.Data) (interface{}, error) {
-			config, target, err := MBaseCmd(parsed, parsed.Args[0].Int64())
-			if err != nil {
-				return nil, err
-			}
-			_, err = MBaseCmdSecond(parsed, "", true, discordgo.PermissionManageMessages, config.WarnCmdRoles, config.WarnCommandsEnabled)
-			if err != nil {
-				return nil, err
-			}
+	    CustomEnabled: true,
+	    CmdCategory:   commands.CategoryModeration,
+	    Name:          "Warn",
+	    Description:   "Warns a user, warnings are saved using the bot. Use -warnings to view them.",
+	    RequiredArgs:  2,
+	    Arguments: []*dcmd.ArgDef{
+	        {Name: "User", Type: dcmd.UserID},
+	        {Name: "Reason", Type: dcmd.String},
+	    },
+	    RequiredDiscordPermsHelp: "ManageMessages or ManageServer",
+	    SlashCommandEnabled:      true,
+	    DefaultEnabled:           false,
+	    IsResponseEphemeral:      true,
+	    RunFunc: func(parsed *dcmd.Data) (interface{}, error) {
+	        config, target, err := MBaseCmd(parsed, parsed.Args[0].Int64())
+	        if err != nil {
+	            return nil, err
+	        }
+	        _, err = MBaseCmdSecond(parsed, "", true, discordgo.PermissionManageMessages, config.WarnCmdRoles, config.WarnCommandsEnabled)
+	        if err != nil {
+	            return nil, err
+	        }
 
-			member, err := bot.GetMember(parsed.GuildData.GS.ID, target.ID)
-			if err != nil || member == nil {
-				return "Member not found", err
-			}
+	        member, err := bot.GetMember(parsed.GuildData.GS.ID, target.ID)
+	        if err != nil || member == nil {
+	            return "Member not found", err
+	        }
 
-			var msg *discordgo.Message
-			if parsed.TraditionalTriggerData != nil {
-				msg = parsed.TraditionalTriggerData.Message
-			}
-			err = WarnUser(config, parsed.GuildData.GS.ID, parsed.GuildData.CS, msg, parsed.Author, target, parsed.Args[1].Str())
-			if err != nil {
-				return nil, err
-			}
+	        var msg *discordgo.Message
+	        if parsed.TraditionalTriggerData != nil {
+	            msg = parsed.TraditionalTriggerData.Message
+	        }
 
-			return GenericCmdResp(MAWarned, target, 0, false, true), nil
-		},
+	        // Check for attachments in the message
+	        attachmentURLs := make([]string, 0)
+	        for _, att := range msg.Attachments {
+	            attachmentURLs = append(attachmentURLs, att.URL)
+	        }
+
+	        // Add attachment URLs to the reason
+	        reason := parsed.Args[1].Str()
+	        if len(attachmentURLs) > 0 {
+	            reason = fmt.Sprintf("%s\n\nAttachments: %s", reason, strings.Join(attachmentURLs, ", "))
+	        }
+
+	        err = WarnUser(config, parsed.GuildData.GS.ID, parsed.GuildData.CS, msg, parsed.Author, target, reason)
+	        if err != nil {
+	            return nil, err
+	        }
+
+	        return GenericCmdResp(MAWarned, target, 0, false, true), nil
+	    },
 	},
 	{
 		CustomEnabled: true,
